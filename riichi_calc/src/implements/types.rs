@@ -1,30 +1,77 @@
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Suit { Man, Pin, Sou }
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Honor { Wind(Wind), Dragon(Dragon) }
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Wind { East, South, West, North }
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Dragon { White, Green, Red }
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Tile {
     Number(u8, Suit), // u8 from 1-9
     Honor(Honor),
 }
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum MeldType { Sequence, Triplet, Kan }
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum WaitType {
+    TwoSided, // Ryanmen
+    Pair,     // Tanki
+    Edge,     // Penchan
+    Closed,   // Kanchan
+    Single,   // Shanpon
+    KokushiSingle, // For 13 orphans
+    KokushiThirteenSided, // For 13 orphans
+}
+
+#[derive(Debug, Clone, Copy)]
 pub struct Meld {
     pub meld_type: MeldType,
     pub is_open: bool,
-    pub tiles: [Tile; 4], // Use 4, Kants just have a different type
+    pub tiles: [Tile; 4],
 }
-pub enum MeldType { Sequence, Triplet, Kan }
-// An array where the index 0-33 corresponds to a unique tile.
-// e.g., 0-8=Man, 9-17=Pin, 18-26=Sou, 27-33=Honors
-// The value at the index is the count of that tile (0-4).
-pub enum WaitType { TwoSided, Pair, Edge, Closed, Single }
+
+#[derive(Debug, Clone, Copy)]
 pub struct Hand {
-    pub tiles: [u8; 34], // counts of each tile in the hand
+    pub tiles: [u8; 34],
 }
+
+#[derive(Debug, Clone)]
 pub struct WinningHand {
     pub melds: [Meld; 4],
     pub pair: (Tile, Tile),
     pub winning_tile: Tile,
-    pub wait_type: WaitType, // e.g., TwoSided, Pair, Edge
+    pub wait_type: WaitType,
 }
+
+// This enum allows us to store different valid hand structures.
+#[derive(Debug, Clone)]
+pub enum HandStructure {
+    /// The standard 4 melds + 1 pair hand
+    Standard(WinningHand),
+    
+    /// The 7 pairs (Chiitoitsu) hand
+    SevenPairs {
+        pairs: [Tile; 7],
+        winning_tile: Tile,
+        wait_type: WaitType, // Will always be WaitType::Pair
+    },
+    
+    /// The 13 orphans (Kokushi Musou) hand
+    ThirteenOrphans {
+        pair_tile: Tile,
+        winning_tile: Tile,
+        wait_type: WaitType, // KokushiSingle or KokushiThirteenSided
+    },
+}
+
+#[derive(Debug, Clone)]
 pub struct GameConditions {
     pub seat_wind: Wind,
     pub prevalent_wind: Wind,
@@ -37,33 +84,38 @@ pub struct GameConditions {
     // ... and booleans for Haitei, Rinshan, etc.
 }
 
-// this structure holds the raw input before hand organization.
-// this will later be transformed into OrganizedHandInput.
+#[derive(Debug, Clone)]
 pub struct RawHandInput {
-    pub tiles: Vec<Tile>, // all 14 tiles including winning tile
+    pub tiles: Vec<Tile>,
     pub winning_tile: Tile,
-    pub game_conditions: GameConditions,
-}
-// The input structure for the main calculation function after hand organization.
-pub struct OrganizedHandInput {
-    pub winning_hand: WinningHand,
+    pub open_melds: Vec<Meld>,
     pub game_conditions: GameConditions,
 }
 
-// An enum listing every Yaku, storing its Han value.
+// OrganizedHand now holds a HandStructure enum instead of just a WinningHand.
+#[derive(Debug, Clone)]
+pub struct OrganizedHand {
+    pub hand_structure: HandStructure, // Replaced winning_hand
+    pub game_conditions: GameConditions,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Yaku {
-    Riichi(u8),       // 1 Han
-    Tanyao(u8),       // 1 Han
-    Pinfu(u8),       // 1 Han
-    Honitsu(u8),     // 3 Han (2 if open)
-    Daisangen(u8),        // Yakuman
+    Riichi(u8),
+    Tanyao(u8),
+    Pinfu(u8),
+    Honitsu(u8),
+    Chiitoitsu(u8),     // 2 Han (for 7 pairs)
+    Daisangen(u8),
+    KokushiMusou(u8), // Yakuman (for 13 orphans)
     // ... etc.
 }
-// The final output of our library.
+
+#[derive(Debug, Clone)]
 pub struct ScoreResult {
     pub han: u8,
     pub fu: u8,
     pub points: u32,
     pub yaku_list: Vec<Yaku>,
-    pub score_name: String, // e.g., "Mangan", "Haneman"
+    pub score_name: String,
 }
