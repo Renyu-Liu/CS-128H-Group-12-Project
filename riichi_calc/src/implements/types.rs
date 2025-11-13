@@ -46,6 +46,37 @@ pub mod tiles {
         Jihai(Jihai),     // 字牌 (Honor tile)
     }
 
+    // --- NEW: Tile helper methods ---
+    /// This implementation block consolidates all tile-checking logic.
+    impl Hai {
+        /// Is the tile a simple (2-8 suhai)?
+        pub fn is_simple(&self) -> bool {
+            match self {
+                Hai::Suhai(n, _) => *n >= 2 && *n <= 8,
+                Hai::Jihai(_) => false,
+            }
+        }
+
+        /// Is the tile a terminal (1 or 9)?
+        pub fn is_terminal(&self) -> bool {
+            match self {
+                Hai::Suhai(n, _) => *n == 1 || *n == 9,
+                Hai::Jihai(_) => false,
+            }
+        }
+
+        /// Is the tile an honor tile (wind or dragon)?
+        pub fn is_jihai(&self) -> bool {
+            matches!(self, Hai::Jihai(_))
+        }
+
+        /// Is the tile a terminal or honor (yaochuu-hai)?
+        pub fn is_yaochuu(&self) -> bool {
+            self.is_terminal() || self.is_jihai()
+        }
+    }
+    // --- End of new block ---
+
     /// Converts a Hai enum to its corresponding index (0-33).
     pub fn tile_to_index(tile: &Hai) -> usize {
         match tile {
@@ -118,7 +149,6 @@ pub mod hand {
         // Special waits for Yakuman
         KokushiIchimen,    // 国士一面 (Kokushi single wait)
         KokushiJusanmen, // 国士十三面 (Kokushi 13-sided wait)
-        Kyuumen,         // 九面 (Nine-sided wait for Nine Gates)
     }
 
     #[derive(Debug, Clone, Copy)]
@@ -214,7 +244,7 @@ pub mod game {
         pub riichi_bou: u8,           // リーチ棒 (Riichi sticks on table)
         pub dora_indicators: Vec<Hai>,  // ドラ表示牌 (Dora indicators)
         pub uradora_indicators: Vec<Hai>, // 裏ドラ表示牌 (Ura Dora indicators)
-        pub num_akadora: u8,          // 赤ドラの数 (Number of Red Dora in the game)
+        pub num_akadora: u8,          // 赤ドラの数 (Number of Red Dora in the hand)
         // Special win condition flags
         pub is_tenhou: bool,    // 天和 (Blessing of Heaven)
         pub is_chiihou: bool,   // 地和 (Blessing of Earth)
@@ -230,6 +260,9 @@ pub mod game {
 ///
 /// This module defines all possible yaku, including Dora.
 pub mod yaku {
+    // --- NEW ---
+    use std::fmt;
+
     #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
     /// Represents a single Yaku (or bonus Dora) awarded to a hand.
     /// The han value is determined by the scoring logic, considering
@@ -296,8 +329,14 @@ pub mod yaku {
         Dora,    // ドラ (Dora)
         UraDora, // 裏ドラ (Ura Dora)
         AkaDora, // 赤ドラ (Red Five Dora)
-                 // NOTE: AkaDora requires modifying the Hai::Suhai enum
-                 // to include a boolean flag, e.g., Suhai(u8, Suhai, bool).
+    }
+
+    // --- NEW: Implement Display for Yaku ---
+    impl fmt::Display for Yaku {
+        fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+            // We use `Debug` format for a simple, readable name.
+            write!(f, "{:?}", self)
+        }
     }
 }
 
@@ -305,6 +344,9 @@ pub mod yaku {
 ///
 /// This module defines the final output of a score calculation.
 pub mod scoring {
+    // --- NEW ---
+    use std::fmt;
+
     use super::yaku::Yaku;
 
     #[derive(Debug, Clone, PartialEq, Eq)]
@@ -319,12 +361,20 @@ pub mod scoring {
                    // han >= 13 and mapping to HandLimit::Yakuman.
     }
 
+    // --- NEW: Implement Display for HandLimit ---
+    impl fmt::Display for HandLimit {
+        fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+            write!(f, "{:?}", self)
+        }
+    }
+
     #[derive(Debug, Clone)]
     /// Represents the complete scoring result for a winning hand.
     pub struct AgariResult {
         pub han: u8,            // 飜 (Han count)
         pub fu: u8,             // 符 (Fu count)
         pub yaku_list: Vec<Yaku>, // List of all yaku and dora achieved
+        pub num_akadora: u8,    // --- NEW: Added for display ---
 
         /// The named limit, if one is reached.
         pub limit_name: Option<HandLimit>,
@@ -344,6 +394,72 @@ pub mod scoring {
 
         /// Total points received by the winner, including honba.
         pub total_payment: u32,
+    }
+
+    // --- Implement Display for AgariResult ---
+    impl fmt::Display for AgariResult {
+        fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+            writeln!(f, "========== Score Result ==========")?;
+
+            // --- Han / Fu / Limit ---
+            if let Some(limit) = &self.limit_name {
+                if limit == &HandLimit::Yakuman {
+                    let num_yakuman = self.han / 13;
+                    if num_yakuman > 1 {
+                        writeln!(f, "{} x{}", limit, num_yakuman)?;
+                    } else {
+                        writeln!(f, "{}", limit)?;
+                    }
+                } else {
+                    writeln!(f, "{} ({} Han)", limit, self.han)?;
+                }
+            } else {
+                writeln!(f, "{} Han, {} Fu", self.han, self.fu)?;
+            }
+
+            // --- Yaku List ---
+            writeln!(f, "\n--- Yaku List ---")?;
+            let mut dora_count = 0;
+            let mut uradora_count = 0;
+            let mut akadora_count = 0;
+
+            for yaku in &self.yaku_list {
+                match yaku {
+                    Yaku::Dora => dora_count += 1,
+                    Yaku::UraDora => uradora_count += 1,
+                    Yaku::AkaDora => akadora_count += 1,
+                    _ => writeln!(f, "- {}", yaku)?,
+                }
+            }
+            if dora_count > 0 {
+                writeln!(f, "- Dora {}", dora_count)?;
+            }
+            if uradora_count > 0 {
+                writeln!(f, "- UraDora {}", uradora_count)?;
+            }
+            if akadora_count > 0 {
+                writeln!(f, "- AkaDora {}", akadora_count)?;
+            }
+
+            // --- Payment ---
+            writeln!(f, "\n--- Payment ---")?;
+            // Tsumo case (Ko)
+            if self.ko_payment > 0 {
+                writeln!(f, "Total Payment: {}", self.total_payment)?;
+                writeln!(f, "Oya (Dealer) pays: {}", self.oya_payment)?;
+                writeln!(f, "Ko (Non-Dealer) pays: {}", self.ko_payment)?;
+            // Tsumo case (Oya)
+            } else if self.oya_payment > 0 && self.base_points == self.oya_payment {
+                 writeln!(f, "Total Payment: {}", self.total_payment)?;
+                 writeln!(f, "All players pay: {}", self.oya_payment)?;
+            // Ron case
+            } else {
+                writeln!(f, "Total Payment: {}", self.total_payment)?;
+            }
+
+            writeln!(f, "==================================")?;
+            Ok(())
+        }
     }
 }
 

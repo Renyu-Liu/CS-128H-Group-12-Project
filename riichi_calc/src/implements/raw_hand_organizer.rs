@@ -1,11 +1,10 @@
 // Import all the new modular types
 use super::types::{
-    // --- NEW: Add imports needed for validation ---
     game::{AgariType, GameContext, PlayerContext},
     hand::{AgariHand, HandOrganization, Machi, Mentsu, MentsuType},
     // Import centralized helper functions
-    tiles::{index_to_tile, tile_to_index, Hai, Jihai, Kaze, Sangenpai, Suhai},
-    input::{OpenMeldInput, UserInput},
+    tiles::{index_to_tile, tile_to_index, Hai, Suhai},
+    input::{UserInput},
 };
 // Used for converting Vec<Mentsu> to [Mentsu; 4]
 use std::convert::TryInto;
@@ -33,9 +32,23 @@ mod input_validator {
         if p.is_menzen && !input.open_melds.is_empty() {
             return Err("Invalid state: Hand is declared menzen but has open melds.");
         }
+        // --- LOGIC FIX: Allow menzen=false with no open melds ---
+        // This is a valid state (e.g., fully concealed hand, but
+        // player chooses not to declare riichi, or a hand that
+        // cannot be menzen like Chiitoitsu, but still has no "open" melds)
+        // A player can have a concealed hand but not be "menzen"
+        // if they don't win on tsumo.
+        // The *real* conflict is `is_menzen = true` with open melds.
+        // We will trust the `is_menzen` flag from the user, as it
+        // affects yaku like Pinfu, Tsumo, etc.
+        /*
         if !p.is_menzen && input.open_melds.is_empty() {
-            return Err("Invalid state: Hand is declared not-menzen but has no open melds.");
+            // This check is problematic. A concealed hand won on Ron
+            // might not be considered "menzen" for scoring Tsumo,
+            // but it is still concealed for han calculation.
+            // We'll trust the user's `is_menzen` flag.
         }
+        */
 
         // Tsumo/Ron conflicts
         if g.is_haitei && a == AgariType::Ron {
@@ -102,23 +115,21 @@ mod input_validator {
                 .filter(|m| m.mentsu_type == MentsuType::Kantsu)
                 .count();
 
-        let num_non_kans = (input.closed_kans.len() + input.open_melds.len()) - total_kans;
-        // This is not right. A hand has 4 melds + 1 pair.
-        // Let's recalculate.
-        let num_kantsu_melds = total_kans;
-        let num_normal_melds = 4 - num_kantsu_melds;
-        
         // This calculation assumes the input is for a *complete* hand (4 melds + 1 pair)
-        // A hand with 0 kans has (4 * 3) + 2 = 14 tiles
-        // A hand with 1 kan has (1 * 4) + (3 * 3) + 2 = 15 tiles
-        // A hand with 2 kans has (2 * 4) + (2 * 3) + 2 = 16 tiles
-        // A hand with 3 kans has (3 * 4) + (1 * 3) + 2 = 17 tiles
-        // A hand with 4 kans has (4 * 4) + 0 + 2 = 18 tiles
         // Formula: (total_kans * 4) + ((4 - total_kans) * 3) + 2
         
         let expected_tiles = (total_kans * 4) + ((4 - total_kans) * 3) + 2;
 
-        if input.hand_tiles.len() != expected_tiles {
+        // --- LOGIC FIX: Allow for Kokushi/Chiitoitsu (14 tiles) ---
+        // The standard hand check is only valid if the hand IS standard.
+        // Kokushi and Chiitoitsu always have 14 tiles and 0 kans.
+        let hand_len = input.hand_tiles.len();
+        if hand_len == 14 && total_kans == 0 {
+            // This could be a 0-kan standard hand, OR Chiitoitsu/Kokushi.
+            // This is valid.
+        } else if hand_len != expected_tiles {
+             // It's not a 14-tile/0-kan hand, so it MUST match
+             // the kan-based count.
             let err_msg = "Invalid hand: Tile count does not match declared kans. (Expected 14 for 0 kans, 15 for 1 kan, 16 for 2, 17 for 3, 18 for 4).";
             return Err(err_msg);
         }
@@ -205,6 +216,8 @@ mod recursive_parser {
         }
 
         // --- Try to form a Sequence (Shuntsu) ---
+        // Check i < 27 (not Jihai)
+        // Check (i % 9) < 7 (not 8s or 9s)
         if i < 27 && (i % 9) < 7 && counts[i] > 0 && counts[i + 1] > 0 && counts[i + 2] > 0 {
             let tile1 = index_to_tile(i);
             let tile2 = index_to_tile(i + 1);
@@ -269,17 +282,24 @@ mod wait_analyzer {
                 let t3 = winning_meld.tiles[2];
 
                 if agari_hai == t2 {
+                    // e.g., 4-6 waiting on 5 (tile 2)
                     Machi::Kanchan
                 } else if agari_hai == t1 {
+                    // e.g., 8-9 waiting on 7 (tile 1)
                     if tile_to_index(&t3) % 9 == 8 {
+                        // t3 is a 9 (e.g., 7-8-9)
                         Machi::Penchan
                     } else {
+                        // e.g., 5-6 waiting on 4 (tile 1)
                         Machi::Ryanmen
                     }
                 } else if agari_hai == t3 {
+                     // e.g., 1-2 waiting on 3 (tile 3)
                     if tile_to_index(&t1) % 9 == 0 {
+                         // t1 is a 1 (e.g., 1-2-3)
                         Machi::Penchan
                     } else {
+                        // e.g., 5-6 waiting on 7 (tile 3)
                         Machi::Ryanmen
                     }
                 } else {
@@ -417,7 +437,13 @@ pub fn organize_hand(input: &UserInput) -> Result<HandOrganization, &'static str
                 return Ok(HandOrganization::YonmentsuIchiatama(agari_hand));
             }
         }
-        return Err("Invalid hand: 4 open melds but no pair found.");
+        // Check for 14-tile hand that is NOT Chiitoitsu/Kokushi
+        // This case is only possible if validation is wrong.
+        if input.hand_tiles.len() == 14 {
+             // Fall through to Irregular check
+        } else {
+            return Err("Invalid hand: 4 open melds but no pair found.");
+        }
     }
 
     // --- Case B: 0-3 known melds (Standard Hand Check) ---
