@@ -195,8 +195,10 @@ pub mod hand {
         KokushiMusou {
             tiles: [Hai; 13], // The 13 unique tiles
             atama: (Hai, Hai),  // The pair
-            agari_hai: Hai, // The winning tile
-            machi: Machi, // KokushiIchimen (1-sided wait) or KokushiJusanmen (13-sided wait)
+            // --- FIX: Prefixed `agari_hai` with `_` to silence the dead code warning. ---
+            _agari_hai: Hai, // The winning tile
+            // --- FIX: Prefixed `machi` with `_` to silence the dead code warning. ---
+            _machi: Machi, // KokushiIchimen (1-sided wait) or KokushiJusanmen (13-sided wait)
         },
 
         /// 九蓮宝燈 (Nine Gates)
@@ -205,7 +207,8 @@ pub mod hand {
         /// but this flag is used to award the double yakuman.
         ChuurenPoutou {
             hand: AgariHand,
-            is_junsei: bool, // 純正 (Is it a true 9-sided wait?)
+            // --- FIX: Prefixed `is_junsei` with `_` to silence the dead code warning. ---
+            _is_junsei: bool, // 純正 (Is it a true 9-sided wait?)
         },
     }
 }
@@ -346,7 +349,8 @@ pub mod yaku {
 pub mod scoring {
     // --- NEW ---
     use std::fmt;
-
+    // --- MODIFIED: Import AgariType for the struct ---
+    use super::game::AgariType;
     use super::yaku::Yaku;
 
     #[derive(Debug, Clone, PartialEq, Eq)]
@@ -386,42 +390,59 @@ pub mod scoring {
         // Payment fields are split for clarity in Tsumo calculations
         /// For non-dealer tsumo, this is the dealer's payment.
         /// For dealer tsumo, this is the (identical) payment from each non-dealer.
+        /// --- NOTE: This value is *before* honba. ---
         pub oya_payment: u32,
 
         /// For non-dealer tsumo, this is the payment from other non-dealers.
         /// For dealer tsumo, this is 0.
+        /// --- NOTE: This value is *before* honba. ---
         pub ko_payment: u32,
 
         /// Total points received by the winner, including honba.
         pub total_payment: u32,
+
+        // --- MODIFIED: NEW FIELDS FOR DISPLAY ---
+        /// Honba count, for displaying payments correctly.
+        pub honba: u8,
+        /// How the hand was won.
+        pub agari_type: AgariType,
+        /// Whether the winner was Oya (dealer).
+        pub is_oya: bool,
     }
 
-    // --- Implement Display for AgariResult ---
+    // --- MODIFIED: Implement Display for AgariResult ---
     impl fmt::Display for AgariResult {
         fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
             writeln!(f, "========== Score Result ==========")?;
 
-            // --- Han / Fu / Limit ---
+            // 1. Total Score
+            writeln!(f, "Total Payment: {}", self.total_payment)?;
+
+            // 2. Han / Fu & 4. Limit Name
             if let Some(limit) = &self.limit_name {
                 if limit == &HandLimit::Yakuman {
                     let num_yakuman = self.han / 13;
                     if num_yakuman > 1 {
-                        writeln!(f, "{} x{}", limit, num_yakuman)?;
+                        writeln!(f, "\n{} x{}", limit, num_yakuman)?;
                     } else {
-                        writeln!(f, "{}", limit)?;
+                        writeln!(f, "\n{}", limit)?;
                     }
                 } else {
-                    writeln!(f, "{} ({} Han)", limit, self.han)?;
+                    writeln!(f, "\n{} ({} Fu, {} Han)", limit, self.fu, self.han)?;
                 }
             } else {
-                writeln!(f, "{} Han, {} Fu", self.han, self.fu)?;
+                writeln!(f, "\n{} Fu, {} Han", self.fu, self.han)?;
             }
 
-            // --- Yaku List ---
+            // 3. Yaku List
             writeln!(f, "\n--- Yaku List ---")?;
             let mut dora_count = 0;
             let mut uradora_count = 0;
             let mut akadora_count = 0;
+
+            if self.yaku_list.is_empty() {
+                writeln!(f, "(No yaku)")?;
+            }
 
             for yaku in &self.yaku_list {
                 match yaku {
@@ -441,20 +462,58 @@ pub mod scoring {
                 writeln!(f, "- AkaDora {}", akadora_count)?;
             }
 
-            // --- Payment ---
-            writeln!(f, "\n--- Payment ---")?;
-            // Tsumo case (Ko)
-            if self.ko_payment > 0 {
-                writeln!(f, "Total Payment: {}", self.total_payment)?;
-                writeln!(f, "Oya (Dealer) pays: {}", self.oya_payment)?;
-                writeln!(f, "Ko (Non-Dealer) pays: {}", self.ko_payment)?;
-            // Tsumo case (Oya)
-            } else if self.oya_payment > 0 && self.base_points == self.oya_payment {
-                 writeln!(f, "Total Payment: {}", self.total_payment)?;
-                 writeln!(f, "All players pay: {}", self.oya_payment)?;
-            // Ron case
-            } else {
-                writeln!(f, "Total Payment: {}", self.total_payment)?;
+            // 5. Payment Breakdown
+            writeln!(f, "\n--- Payment Breakdown ---")?;
+            let tsumo_bonus = self.honba as u32 * 100;
+            let ron_bonus = self.honba as u32 * 300;
+
+            match (self.is_oya, self.agari_type) {
+                // Oya Tsumo
+                (true, AgariType::Tsumo) => {
+                    let payment_per_player = self.oya_payment + tsumo_bonus;
+                    writeln!(f, "Oya Tsumo win:")?;
+                    writeln!(
+                        f,
+                        "  Each Non-Dealer pays: {} ({} base + {} honba)",
+                        payment_per_player, self.oya_payment, tsumo_bonus
+                    )?;
+                }
+                // Ko Tsumo
+                (false, AgariType::Tsumo) => {
+                    let oya_pay = self.oya_payment + tsumo_bonus;
+                    let ko_pay = self.ko_payment + tsumo_bonus;
+                    writeln!(f, "Ko Tsumo win:")?;
+                    writeln!(
+                        f,
+                        "  Oya (Dealer) pays: {} ({} base + {} honba)",
+                        oya_pay, self.oya_payment, tsumo_bonus
+                    )?;
+                    writeln!(
+                        f,
+                        "  Other Non-Dealers pay: {} ({} base + {} honba)",
+                        ko_pay, self.ko_payment, tsumo_bonus
+                    )?;
+                }
+                // Oya Ron
+                (true, AgariType::Ron) => {
+                    let base_payment = self.total_payment - ron_bonus;
+                    writeln!(f, "Oya Ron win:")?;
+                    writeln!(
+                        f,
+                        "  Discarder pays: {} ({} base + {} honba)",
+                        self.total_payment, base_payment, ron_bonus
+                    )?;
+                }
+                // Ko Ron
+                (false, AgariType::Ron) => {
+                    let base_payment = self.total_payment - ron_bonus;
+                    writeln!(f, "Ko Ron win:")?;
+                    writeln!(
+                        f,
+                        "  Discarder pays: {} ({} base + {} honba)",
+                        self.total_payment, base_payment, ron_bonus
+                    )?;
+                }
             }
 
             writeln!(f, "==================================")?;

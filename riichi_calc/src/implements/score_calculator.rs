@@ -55,7 +55,7 @@ pub fn calculate_score(
                 let p = round_up_100(base_yakuman_points * 2);
                 let total = (p + tsumo_bonus) * 3;
                 // base_points is redundant here, but set to p for consistency
-                // oya_payment is what each non-dealer pays
+                // oya_payment is what each non-dealer pays (before honba)
                 (p, p, 0, total)
             }
             // Ko Tsumo
@@ -63,7 +63,7 @@ pub fn calculate_score(
                 let oya_p = round_up_100(base_yakuman_points * 2);
                 let ko_p = round_up_100(base_yakuman_points * 1);
                 let total = (oya_p + tsumo_bonus) + (ko_p + tsumo_bonus) * 2;
-                // base_points is non-dealer payment, oya_payment is dealer payment
+                // base_points is non-dealer payment, oya_payment is dealer payment (before honba)
                 (ko_p, oya_p, ko_p, total)
             }
             // Oya Ron
@@ -90,6 +90,10 @@ pub fn calculate_score(
             oya_payment,
             ko_payment,
             total_payment,
+            // --- MODIFIED: ADDED FIELDS ---
+            honba: game.honba,
+            agari_type,
+            is_oya: player.is_oya,
         };
     }
 
@@ -113,6 +117,7 @@ pub fn calculate_score(
         (true, AgariType::Tsumo) => {
             let p = round_up_100(basic_points * 2);
             let total = (p + tsumo_bonus) * 3;
+            // oya_payment is payment per player (before honba)
             (p, p, 0, total)
         }
         // Ko Tsumo
@@ -120,6 +125,7 @@ pub fn calculate_score(
             let oya_p = round_up_100(basic_points * 2);
             let ko_p = round_up_100(basic_points * 1);
             let total = (oya_p + tsumo_bonus) + (ko_p + tsumo_bonus) * 2;
+            // base_points is ko_payment (before honba)
             (ko_p, oya_p, ko_p, total)
         }
         // Oya Ron
@@ -144,6 +150,10 @@ pub fn calculate_score(
         oya_payment,
         ko_payment,
         total_payment,
+        // --- MODIFIED: ADDED FIELDS ---
+        honba: game.honba,
+        agari_type,
+        is_oya: player.is_oya,
     }
 }
 

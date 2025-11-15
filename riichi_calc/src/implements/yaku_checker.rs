@@ -120,7 +120,7 @@ pub fn check_all_yaku(
 // --- 1. Yakuman Checkers ---
 
 /// Checks for Tenhou (Blessing of Heaven) and Chiihou (Blessing of Earth)
-fn check_game_state_yakuman(player: &PlayerContext, game: &GameContext) -> Vec<Yaku> {
+fn check_game_state_yakuman(_player: &PlayerContext, game: &GameContext) -> Vec<Yaku> {
     let mut yaku = Vec::new();
     if game.is_tenhou {
         yaku.push(Yaku::Tenhou);
@@ -150,7 +150,7 @@ fn resolve_hand_structure(
             let structure = if let Some(is_junsei) = chuuren_flag {
                 HandStructure::ChuurenPoutou {
                     hand: agari_hand,
-                    is_junsei,
+                    _is_junsei: is_junsei,
                 }
             } else {
                 HandStructure::YonmentsuIchiatama(agari_hand)
@@ -179,7 +179,7 @@ fn resolve_hand_structure(
 /// Returns (Yakuman List, ChuurenPoutou flag)
 fn check_standard_yakuman(
     hand: &AgariHand,
-    player: &PlayerContext,
+    _player: &PlayerContext,
     _game: &GameContext, // _game is not used, but kept for API consistency
     agari_type: AgariType,
 ) -> (Vec<Yaku>, Option<bool>) {
@@ -218,7 +218,7 @@ fn check_standard_yakuman(
     }
 
     // --- Meld-based Yakuman ---
-    let (koutsu, kantsu) = count_koutsu_kantsu(hand);
+    let (_koutsu, kantsu) = count_koutsu_kantsu(hand);
     let concealed_koutsu = count_concealed_koutsu(hand, agari_type);
 
     // Suukantsu (Four Quads)
@@ -353,8 +353,8 @@ fn check_kokushi(counts: &[u8; 34], agari_hai: Hai) -> Option<(HandStructure, Ya
         HandStructure::KokushiMusou {
             tiles: tiles.try_into().ok()?,
             atama,
-            agari_hai,
-            machi: final_machi,
+            _agari_hai: agari_hai,
+            _machi: final_machi,
         },
         yaku,
     ))
@@ -593,7 +593,7 @@ fn find_standard_yaku(
     let all_tiles = get_all_tiles(hand);
     let all_groups = get_all_groups(hand);
 
-    // --- REFACTOR: Use method on Hai ---
+    // --- Use method on Hai ---
     let is_honroutou = all_tiles.iter().all(|t| t.is_yaochuu())
         && !all_tiles.iter().all(|t| t.is_terminal()); // Exclude Chinroutou
 
@@ -675,7 +675,7 @@ fn find_chiitoitsu_yaku(
     // --- Tile-based Yaku ---
     let all_tiles: Vec<Hai> = pairs.iter().flat_map(|&(t1, t2)| vec![t1, t2]).collect();
 
-    // --- REFACTOR: Use method on Hai ---
+    // --- Use method on Hai ---
     if all_tiles.iter().all(|t| t.is_simple()) {
         yaku_list.push(Yaku::Tanyao);
     }
@@ -741,7 +741,6 @@ fn get_dora_tile(indicator: &Hai) -> Hai {
 
 // --- 4. Yaku-specific Helper Functions ---
 
-// --- REFACTOR: Corrected and simplified check_yakuhai ---
 /// Checks for Yakuhai (Dragons, Seat Wind, Prevalent Wind).
 fn check_yakuhai(
     hand: &AgariHand,
@@ -821,7 +820,6 @@ fn check_pinfu(hand: &AgariHand, player: &PlayerContext, game: &GameContext) -> 
 
 /// Checks for Tanyao (All Simples).
 fn check_tanyao(hand: &AgariHand) -> bool {
-    // --- REFACTOR: Use method on Hai ---
     get_all_tiles(hand).iter().all(|t| t.is_simple())
 }
 
@@ -958,7 +956,6 @@ fn check_chanta_junchan(groups: &[Vec<Hai>]) -> (bool, bool) {
         let mut has_jihai = false;
 
         for tile in group {
-            // --- REFACTOR: Use method on Hai ---
             if tile.is_jihai() {
                 has_jihai = true;
             }

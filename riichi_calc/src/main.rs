@@ -121,18 +121,11 @@ fn main() {
     match calculation_result {
         Ok(final_score) => {
             // This will use the `Display` implementation in `types.rs`
+            // that we just updated.
             println!("{}", final_score);
-            
-            println!("--- Expected Score ---");
-            println!("Hand: Tanyao, Pinfu, Tsumo, Riichi");
-            println!("Dora: 1 (3p), UraDora: 1 (7m), AkaDora: 1 (5p)");
-            println!("Total: 7 Han, 20 Fu -> Haneman");
-            println!("Payments (Ko Tsumo, 1 Honba):");
-            println!("  Oya pays: 6000 (base) + 100 (honba) = 6100");
-            println!("  Ko pays: 3000 (base) + 100 (honba) = 3100");
-            println!("Total Received: 6100 + 3100 + 3100 = 12,300");
         }
         Err(error_message) => {
+            // This handles the "invalid hand" case
             println!("!!! Error calculating score: {} !!!", error_message);
         }
 	}
