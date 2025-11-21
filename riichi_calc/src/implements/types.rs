@@ -25,9 +25,9 @@ pub mod tiles {
     /// Represents the three dragons.
     pub enum Sangenpai {
         // 三元牌 (Dragon Tiles)
-        Haku, // 白 (White)
+        Haku,  // 白 (White)
         Hatsu, // 發 (Green)
-        Chun, // 中 (Red)
+        Chun,  // 中 (Red)
     }
 
     #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
@@ -133,7 +133,7 @@ pub mod hand {
         /// 面子 (Meld)
         pub mentsu_type: MentsuType,
         pub is_minchou: bool, // 明張 (Is the meld open?)
-        pub tiles: [Hai; 4], // Use 4 tiles; for Shuntsu/Koutsu, the 4th is unused.
+        pub tiles: [Hai; 4],  // Use 4 tiles; for Shuntsu/Koutsu, the 4th is unused.
     }
 
     #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -147,7 +147,7 @@ pub mod hand {
         Shanpon, // 双碰 (Triplet-pair wait)
 
         // Special waits for Yakuman
-        KokushiIchimen,    // 国士一面 (Kokushi single wait)
+        KokushiIchimen,  // 国士一面 (Kokushi single wait)
         KokushiJusanmen, // 国士十三面 (Kokushi 13-sided wait)
     }
 
@@ -156,9 +156,9 @@ pub mod hand {
     pub struct AgariHand {
         // 和了手 (Winning Hand)
         pub mentsu: [Mentsu; 4], // 面子 (The 4 melds)
-        pub atama: (Hai, Hai),  // 頭 (The pair)
-        pub agari_hai: Hai,     // 和了牌 (The winning tile)
-        pub machi: Machi,       // 待ち (The wait type)
+        pub atama: (Hai, Hai),   // 頭 (The pair)
+        pub agari_hai: Hai,      // 和了牌 (The winning tile)
+        pub machi: Machi,        // 待ち (The wait type)
     }
 
     /// Represents the two possible outcomes of the raw hand organizer.
@@ -193,8 +193,8 @@ pub mod hand {
 
         /// 国士無双 (Thirteen Orphans)
         KokushiMusou {
-            tiles: [Hai; 13], // The 13 unique tiles
-            atama: (Hai, Hai),  // The pair
+            tiles: [Hai; 13],  // The 13 unique tiles
+            atama: (Hai, Hai), // The pair
             // --- FIX: Prefixed `agari_hai` with `_` to silence the dead code warning. ---
             _agari_hai: Hai, // The winning tile
             // --- FIX: Prefixed `machi` with `_` to silence the dead code warning. ---
@@ -230,32 +230,34 @@ pub mod game {
     #[derive(Debug, Clone, Copy, PartialEq, Eq)]
     /// Context for the player winning the hand.
     pub struct PlayerContext {
-        pub jikaze: Kaze,    // 自風 (Seat Wind)
-        pub is_oya: bool,    // 親 (Is player the dealer?)
-        pub is_riichi: bool, // 立直 (Was Riichi declared?)
+        pub jikaze: Kaze,           // 自風 (Seat Wind)
+        pub is_oya: bool,           // 親 (Is player the dealer?)
+        pub is_riichi: bool,        // 立直 (Was Riichi declared?)
         pub is_daburu_riichi: bool, // ダブル立直 (Double Riichi)
-        pub is_ippatsu: bool,         // 一発 (Ippatsu)
+        pub is_ippatsu: bool,       // 一発 (Ippatsu)
         pub is_menzen: bool,        // 門前 (Is the hand fully concealed?)
     }
 
     #[derive(Debug, Clone)]
     /// Context for the current round of play.
     pub struct GameContext {
-        pub bakaze: Kaze,             // 場風 (Prevalent Wind)
-        pub kyoku: u8,                // 局 (Round number, e.g., 1 for East 1)
-        pub honba: u8,                // 本場 (Honba counter)
-        pub riichi_bou: u8,           // リーチ棒 (Riichi sticks on table)
-        pub dora_indicators: Vec<Hai>,  // ドラ表示牌 (Dora indicators)
+        pub bakaze: Kaze, // 場風 (Prevalent Wind)
+        #[allow(dead_code)]
+        pub kyoku: u8, // 局 (Round number, e.g., 1 for East 1)
+        pub honba: u8,    // 本場 (Honba counter)
+        #[allow(dead_code)]
+        pub riichi_bou: u8, // リーチ棒 (Riichi sticks on table)
+        pub dora_indicators: Vec<Hai>, // ドラ表示牌 (Dora indicators)
         pub uradora_indicators: Vec<Hai>, // 裏ドラ表示牌 (Ura Dora indicators)
-        pub num_akadora: u8,          // 赤ドラの数 (Number of Red Dora in the hand)
+        pub num_akadora: u8, // 赤ドラの数 (Number of Red Dora in the hand)
         // Special win condition flags
-        pub is_tenhou: bool,    // 天和 (Blessing of Heaven)
-        pub is_chiihou: bool,   // 地和 (Blessing of Earth)
-        pub is_renhou: bool,    // 人和 (Blessing of Man)
-        pub is_haitei: bool,    // 海底 (Under the Sea - last draw)
-        pub is_houtei: bool,    // 河底 (Under the River - last discard)
-        pub is_rinshan: bool,   // 嶺上 (After a Kan)
-        pub is_chankan: bool,   // 搶槓 (Robbing a Kan)
+        pub is_tenhou: bool,  // 天和 (Blessing of Heaven)
+        pub is_chiihou: bool, // 地和 (Blessing of Earth)
+        pub is_renhou: bool,  // 人和 (Blessing of Man)
+        pub is_haitei: bool,  // 海底 (Under the Sea - last draw)
+        pub is_houtei: bool,  // 河底 (Under the River - last discard)
+        pub is_rinshan: bool, // 嶺上 (After a Kan)
+        pub is_chankan: bool, // 搶槓 (Robbing a Kan)
     }
 }
 
@@ -309,19 +311,19 @@ pub mod yaku {
         Chinitsu, // 清一色 (Full Flush) kuisagari
 
         // --- Yakuman (13 Han) ---
-        Tenhou,               // 天和 (Blessing of Heaven)
-        Chiihou,              // 地和 (Blessing of Earth)
-        Renhou,               // 人和 (Blessing of Man)
-        Daisangen,            // 大三元 (Big Three Dragons)
-        Suuankou,             // 四暗刻 (Four Concealed Triplets)
-        Daisuushi,            // 大四喜 (Four Big Winds)
-        Shousuushi,           // 小四喜 (Four Little Winds)
-        Tsuuiisou,            // 字一色 (All Honors)
-        Chinroutou,           // 清老頭 (All Terminals)
-        Ryuuiisou,            // 緑一色 (All Green)
-        Suukantsu,            // 四槓子 (Four Quads)
-        KokushiMusou,         // 国士無双 (Thirteen Orphans)
-        ChuurenPoutou,        // 九蓮宝燈 (Nine Gates)
+        Tenhou,        // 天和 (Blessing of Heaven)
+        Chiihou,       // 地和 (Blessing of Earth)
+        Renhou,        // 人和 (Blessing of Man)
+        Daisangen,     // 大三元 (Big Three Dragons)
+        Suuankou,      // 四暗刻 (Four Concealed Triplets)
+        Daisuushi,     // 大四喜 (Four Big Winds)
+        Shousuushi,    // 小四喜 (Four Little Winds)
+        Tsuuiisou,     // 字一色 (All Honors)
+        Chinroutou,    // 清老頭 (All Terminals)
+        Ryuuiisou,     // 緑一色 (All Green)
+        Suukantsu,     // 四槓子 (Four Quads)
+        KokushiMusou,  // 国士無双 (Thirteen Orphans)
+        ChuurenPoutou, // 九蓮宝燈 (Nine Gates)
 
         // --- Double Yakuman (26 Han) ---
         SuuankouTanki,        // 四暗刻単騎 (Single Wait Four Concealed)
@@ -375,16 +377,18 @@ pub mod scoring {
     #[derive(Debug, Clone)]
     /// Represents the complete scoring result for a winning hand.
     pub struct AgariResult {
-        pub han: u8,            // 飜 (Han count)
-        pub fu: u8,             // 符 (Fu count)
+        pub han: u8,              // 飜 (Han count)
+        pub fu: u8,               // 符 (Fu count)
         pub yaku_list: Vec<Yaku>, // List of all yaku and dora achieved
-        pub num_akadora: u8,    // --- NEW: Added for display ---
+        #[allow(dead_code)]
+        pub num_akadora: u8, // --- NEW: Added for display ---
 
         /// The named limit, if one is reached.
         pub limit_name: Option<HandLimit>,
 
         /// Base points. For ron, this is the total.
         /// For tsumo, this is the non-dealer payment.
+        #[allow(dead_code)]
         pub base_points: u32,
 
         // Payment fields are split for clarity in Tsumo calculations
